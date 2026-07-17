@@ -1,10 +1,28 @@
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { verifyEditToken } from "@/lib/tokens";
+import { createListingToken, verifyEditToken } from "@/lib/tokens";
+import { userOwnsListing } from "@/lib/authz";
 import { ManageListingForm } from "@/components/forms/manage-listing-form";
 
 type Params = { id: string };
 type SearchParams = { token?: string };
+
+async function resolveToken(id: string, tokenFromUrl: string | undefined) {
+  if (tokenFromUrl && (await verifyEditToken(tokenFromUrl, id))) {
+    return tokenFromUrl;
+  }
+
+  const session = await auth();
+  if (session?.user?.id && (await userOwnsListing(session.user.id, id))) {
+    // Signed-in owner: mint a fresh short-lived manage token so the page
+    // can reuse the same token-gated PATCH/close endpoints as the emailed
+    // manage link, without exposing a raw session-based API surface.
+    return createListingToken(id, "EDIT_LISTING", 24);
+  }
+
+  return null;
+}
 
 export default async function ManageListingPage({
   params,
@@ -14,17 +32,16 @@ export default async function ManageListingPage({
   searchParams: Promise<SearchParams>;
 }) {
   const { id } = await params;
-  const { token } = await searchParams;
+  const { token: tokenFromUrl } = await searchParams;
 
-  if (!token) notFound();
-
-  const valid = await verifyEditToken(token, id);
-  if (!valid) {
+  const token = await resolveToken(id, tokenFromUrl);
+  if (!token) {
     return (
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
         <h1 className="text-2xl font-semibold">Länken är ogiltig eller har gått ut</h1>
         <p className="text-muted">
-          Kontrollera att du klickade på hela länken från e-postmeddelandet.
+          Kontrollera att du klickade på hela länken från e-postmeddelandet, eller
+          logga in för att hantera dina annonser.
         </p>
       </main>
     );

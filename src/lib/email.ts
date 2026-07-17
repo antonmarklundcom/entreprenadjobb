@@ -30,6 +30,17 @@ export async function sendVerifyPublishEmail(params: {
   );
 }
 
+export async function sendSignInEmail(params: { to: string; url: string }) {
+  await sendEmail(
+    params.to,
+    "Din inloggningslänk till Entreprenadjobb",
+    `<p>Hej!</p>
+     <p>Klicka på länken nedan för att logga in på Entreprenadjobb.se.</p>
+     <p><a href="${params.url}">Logga in</a></p>
+     <p>Länken är giltig i 24 timmar. Om du inte försökte logga in kan du bortse från det här mejlet.</p>`,
+  );
+}
+
 export async function sendListingPublishedEmail(params: {
   to: string;
   listingTitle: string;
