@@ -59,3 +59,18 @@ export const createListingSchema = z.object({
 });
 
 export type CreateListingInput = z.infer<typeof createListingSchema>;
+
+// Used by the token-gated edit flow (src/app/api/listings/[id]/route.ts).
+// A deliberately smaller surface than creation — no trade/city/type
+// changes, just the fields an employer would realistically tweak.
+export const updateListingSchema = z.object({
+  token: z.string().min(1),
+  title: listingDetailsSchema.shape.title.optional(),
+  description: listingDetailsSchema.shape.description.optional(),
+  salaryText: z.string().max(200).optional().or(z.literal("")),
+  scopeText: z.string().max(300).optional().or(z.literal("")),
+  durationText: z.string().max(200).optional().or(z.literal("")),
+  applyEmail: z.email("Ange en giltig e-postadress").optional().or(z.literal("")),
+  applyUrl: z.url("Ange en giltig webbadress").optional().or(z.literal("")),
+  applyPhone: z.string().max(40).optional().or(z.literal("")),
+});
