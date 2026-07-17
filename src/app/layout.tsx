@@ -14,9 +14,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Entreprenadjobb – Jobb och uppdrag inom bygg",
+  metadataBase: new URL("https://entreprenadjobb.se"),
+  title: {
+    default: "Entreprenadjobb – Jobb och uppdrag inom bygg",
+    template: "%s | Entreprenadjobb",
+  },
   description:
     "Gratis jobb- och uppdragsplattform för el, tak och solceller. Publicera jobb, lärlingsplatser eller uppdrag mellan företag.",
+  openGraph: { type: "website", locale: "sv_SE", siteName: "Entreprenadjobb" },
 };
 
 export default function RootLayout({

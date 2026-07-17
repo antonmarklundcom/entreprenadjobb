@@ -3,7 +3,7 @@ import { getAllTrades, getSeoTargetCities } from "@/lib/listings";
 import { PostJobWizard } from "@/components/forms/post-job-wizard";
 
 export const metadata: Metadata = {
-  title: "Publicera jobb eller uppdrag – Entreprenadjobb",
+  title: "Publicera jobb eller uppdrag",
   description: "Publicera ett jobb, en lärlingsplats eller ett uppdrag helt gratis.",
 };
 

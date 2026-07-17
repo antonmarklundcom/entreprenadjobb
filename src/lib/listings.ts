@@ -43,6 +43,7 @@ export async function getListings(filters: ListingFilters): Promise<{
   const where: Prisma.ListingWhereInput = {
     status: "PUBLISHED",
     employmentType: { in: filters.employmentTypes },
+    OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }],
     ...(filters.tradeSlug ? { trade: { slug: filters.tradeSlug } } : {}),
     ...(filters.citySlug ? { city: { slug: filters.citySlug } } : {}),
     ...(filters.onlyOpenToSoloFSkatt ? { openToSoloFSkatt: true } : {}),
@@ -102,6 +103,7 @@ export async function getListingBySlug(slug: string) {
   try {
     const listing = await fetchListingBySlug(slug);
     if (!listing || listing.status !== "PUBLISHED") return null;
+    if (listing.expiresAt && listing.expiresAt.getTime() < Date.now()) return null;
     return listing;
   } catch (error) {
     console.error("getListingBySlug: failed", error);
@@ -114,7 +116,11 @@ export async function countPublishedListings(
 ): Promise<number> {
   try {
     return await db.listing.count({
-      where: { status: "PUBLISHED", employmentType: { in: employmentTypes } },
+      where: {
+        status: "PUBLISHED",
+        employmentType: { in: employmentTypes },
+        OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }],
+      },
     });
   } catch (error) {
     console.error("countPublishedListings: falling back to 0", error);

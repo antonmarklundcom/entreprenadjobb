@@ -22,12 +22,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const listing = await getListingBySlug(slug);
-  if (!listing) return { title: "Annons hittades inte – Entreprenadjobb" };
+  if (!listing) return { title: "Annons hittades inte" };
 
   return {
-    title: `${listing.title} – ${listing.employerName} | Entreprenadjobb`,
+    title: `${listing.title} – ${listing.employerName}`,
     description: listing.description.slice(0, 155),
     robots: listing.source === "JOBTECH" ? { index: false, follow: true } : undefined,
+    alternates: { canonical: `/annons/${listing.slug}` },
   };
 }
 

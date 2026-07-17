@@ -4,7 +4,7 @@ import { ListingCard } from "@/components/listing/listing-card";
 import { getAllTrades, getListings, getSeoTargetCities, sortValues } from "@/lib/listings";
 
 export const metadata: Metadata = {
-  title: "Uppdrag mellan företag – Entreprenadjobb",
+  title: "Uppdrag mellan företag",
   description:
     "Hitta uppdrag som underentreprenör inom el, tak och solceller – öppet för företag och enskilda firmor med F-skatt.",
 };

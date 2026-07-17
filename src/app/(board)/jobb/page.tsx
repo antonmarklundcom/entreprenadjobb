@@ -5,7 +5,7 @@ import { getAllTrades, getListings, getSeoTargetCities, sortValues } from "@/lib
 import type { EmploymentType } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = {
-  title: "Jobb inom bygg – Entreprenadjobb",
+  title: "Jobb inom bygg",
   description:
     "Bläddra bland anställningar och lärlingsplatser inom el, tak och solceller i hela Sverige.",
 };

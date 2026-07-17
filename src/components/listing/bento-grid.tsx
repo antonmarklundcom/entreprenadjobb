@@ -62,7 +62,7 @@ export function BentoGrid({
       {trades.map((trade) => (
         <BentoCell
           key={trade.slug}
-          href={`/jobb?yrke=${trade.slug}`}
+          href={`/jobb/${trade.slug}`}
           icon={(trade.icon && tradeIcons[trade.icon]) || Zap}
           title={trade.nameSv}
           count={trade.listingCount}

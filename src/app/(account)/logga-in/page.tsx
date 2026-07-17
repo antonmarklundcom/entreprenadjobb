@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { signIn } from "@/auth";
 
 export const metadata: Metadata = {
-  title: "Logga in – Entreprenadjobb",
+  title: "Logga in",
 };
 
 type SearchParams = { type?: string };

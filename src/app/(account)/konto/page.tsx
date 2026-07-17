@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
 export const metadata: Metadata = {
-  title: "Mitt konto – Entreprenadjobb",
+  title: "Mitt konto",
 };
 
 const statusLabel: Record<string, string> = {
