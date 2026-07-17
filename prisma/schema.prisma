@@ -1,0 +1,285 @@
+// Prisma ORM 7 — see prisma.config.ts for the CLI datasource URL (migrations only).
+// Runtime connects via a driver adapter in src/lib/db.ts (see README "Database" section).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ────────────────────────────────────────────────────────────
+
+enum EmploymentType {
+  ANSTALLNING // regular employment
+  LARLING // apprenticeship
+  UNDERENTREPRENOR // B2B assignment (uppdrag) — companies / F-skatt solos apply
+}
+
+enum ListingSource {
+  NATIVE // posted on entreprenadjobb.se
+  JOBTECH // aggregated from Arbetsförmedlingen JobSearch API
+}
+
+enum ListingStatus {
+  DRAFT // created by form, email not yet verified
+  PENDING_VERIFICATION // reserved for future moderation queue
+  PUBLISHED
+  CLOSED // closed by owner
+  EXPIRED // passed expiresAt / disappeared from JobTech
+  REMOVED // removed by admin
+}
+
+enum CompanyMemberRole {
+  OWNER
+  MEMBER
+}
+
+enum TokenPurpose {
+  VERIFY_PUBLISH // publish listing + verify email + sign in
+  EDIT_LISTING // one-click manage link in emails
+}
+
+enum RunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+// ── Auth.js v5 standard models (Prisma adapter) ──────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  phone         String?
+  image         String?
+  isAdmin       Boolean   @default(false)
+
+  memberships   CompanyMember[]
+  seekerProfile JobSeekerProfile?
+  accounts      Account[]
+  sessions      Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── Marketplace core ─────────────────────────────────────────────────
+
+model Company {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  name         String
+  orgNumber    String? @unique // Swedish org.nr, optional at creation, required to verify
+  description  String?
+  logoUrl      String?
+  website      String?
+  contactEmail String?
+  phone        String?
+  cityId       String?
+  city         City?   @relation(fields: [cityId], references: [id])
+
+  // Marketplace intent — independent flags, any combination
+  isHiring      Boolean @default(false) // looking for people (anställning/lärling)
+  isOutsourcing Boolean @default(false) // posts assignments for other companies
+  isSeekingWork Boolean @default(false) // wants to take assignments posted by others
+
+  verifiedAt DateTime? // set when org.nr checked by admin (Phase 4)
+
+  trades   Trade[]         @relation("CompanyTrades")
+  members  CompanyMember[]
+  listings Listing[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CompanyMember {
+  id        String            @id @default(cuid())
+  userId    String
+  companyId String
+  role      CompanyMemberRole @default(OWNER)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+}
+
+model JobSeekerProfile {
+  id        String           @id @default(cuid())
+  userId    String           @unique
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug      String           @unique
+  headline  String? // "Certifierad elektriker, 8 års erfarenhet"
+  bio       String?
+  hasFSkatt Boolean          @default(false) // can invoice as solo contractor → sees uppdrag too
+  cityId    String?
+  city      City?            @relation(fields: [cityId], references: [id])
+  openTo    EmploymentType[] // what they're looking for
+  isPublic  Boolean          @default(false) // profile hidden until user opts in
+
+  trades Trade[] @relation("SeekerTrades")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ── Taxonomy ─────────────────────────────────────────────────────────
+
+model Trade {
+  id        String  @id @default(cuid())
+  slug      String  @unique // "el", "tak", "solceller"
+  nameSv    String // "El", "Tak", "Solceller"
+  icon      String? // lucide icon name for the bento grid
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  // JobTech taxonomy concept IDs used by the aggregator for this trade
+  // (occupation-group/field IDs resolved via taxonomy.api.jobtechdev.se in Phase 2)
+  jobtechConceptIds String[] @default([])
+
+  listings  Listing[]
+  companies Company[]          @relation("CompanyTrades")
+  seekers   JobSeekerProfile[] @relation("SeekerTrades")
+}
+
+model City {
+  id               String  @id @default(cuid())
+  slug             String  @unique // "stockholm"
+  name             String // "Stockholm"
+  county           String // "Stockholms län"
+  municipalityCode String? @unique // SCB kommunkod — maps JobTech ads to cities
+  lat              Float?
+  lng              Float?
+  population       Int?
+  isSeoTarget      Boolean @default(false) // include in programmatic SEO generation
+
+  listings  Listing[]
+  companies Company[]
+  seekers   JobSeekerProfile[]
+}
+
+// ── Listings ─────────────────────────────────────────────────────────
+
+model Listing {
+  id          String @id @default(cuid())
+  slug        String @unique
+  title       String
+  description String // markdown-lite / plain text
+
+  source ListingSource @default(NATIVE)
+  status ListingStatus @default(DRAFT)
+
+  employmentType EmploymentType
+  tradeId        String
+  trade          Trade   @relation(fields: [tradeId], references: [id])
+  cityId         String?
+  city           City?   @relation(fields: [cityId], references: [id])
+  locationText   String? // fallback for external ads without a mapped city
+
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id])
+  employerName String // denormalized display name (required for JOBTECH ads)
+
+  // Apply-forwarding (MVP stores no applications)
+  applyEmail String?
+  applyUrl   String?
+  applyPhone String?
+
+  // Employment fields
+  salaryText String?
+  startDate  DateTime?
+
+  // Assignment (uppdrag) fields — meaningful when employmentType = UNDERENTREPRENOR
+  scopeText        String? // e.g. "Takomläggning 400 m², totalentreprenad"
+  durationText     String? // e.g. "6 veckor, start augusti"
+  openToSoloFSkatt Boolean @default(true) // solo F-skatt tradesmen may apply too
+
+  // Reserved for a possible future paid tier — no UI in any planned phase
+  isFeatured    Boolean   @default(false)
+  featuredUntil DateTime?
+
+  publishedAt DateTime?
+  expiresAt   DateTime?
+  closedAt    DateTime?
+
+  // Aggregator / seed-source tracking
+  externalId  String?   @unique // JobTech ad id
+  externalUrl String? // link to Platsbanken ad
+  fetchedAt   DateTime?
+  lastSeenAt  DateTime? // ad missing from source N runs → EXPIRED
+  raw         Json? // original API payload for debugging/re-mapping
+
+  tokens ListingToken[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([tradeId, cityId, employmentType, status])
+  @@index([source, lastSeenAt])
+}
+
+model ListingToken {
+  id        String       @id @default(cuid())
+  tokenHash String       @unique // sha256 of the emailed token — never store raw
+  listingId String
+  listing   Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  purpose   TokenPurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+}
+
+// ── Aggregator run log ───────────────────────────────────────────────
+
+model AggregatorRun {
+  id         String        @id @default(cuid())
+  source     ListingSource @default(JOBTECH)
+  status     RunStatus     @default(RUNNING)
+  startedAt  DateTime      @default(now())
+  finishedAt DateTime?
+  adsFetched Int           @default(0)
+  adsCreated Int           @default(0)
+  adsUpdated Int           @default(0)
+  adsExpired Int           @default(0)
+  error      String?
+}
