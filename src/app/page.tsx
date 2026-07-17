@@ -2,11 +2,16 @@ import Link from "next/link";
 import { BentoGrid } from "@/components/listing/bento-grid";
 import { sv } from "@/copy/sv";
 import { getTradeSummaries } from "@/lib/trades";
+import { countPublishedListings } from "@/lib/listings";
 
 export const revalidate = 60;
 
 export default async function Home() {
-  const trades = await getTradeSummaries();
+  const [trades, assignmentCount, apprenticeshipCount] = await Promise.all([
+    getTradeSummaries(),
+    countPublishedListings(["UNDERENTREPRENOR"]),
+    countPublishedListings(["LARLING"]),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-6 py-16 sm:px-8">
@@ -37,7 +42,11 @@ export default async function Home() {
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
           {sv.home.categoriesTitle}
         </h2>
-        <BentoGrid trades={trades} />
+        <BentoGrid
+          trades={trades}
+          assignmentCount={assignmentCount}
+          apprenticeshipCount={apprenticeshipCount}
+        />
       </section>
     </main>
   );

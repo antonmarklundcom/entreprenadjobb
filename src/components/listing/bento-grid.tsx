@@ -48,23 +48,28 @@ function BentoCell({
   );
 }
 
-export function BentoGrid({ trades }: { trades: TradeSummary[] }) {
-  const assignmentCount = 0; // TODO Phase 1: count of UNDERENTREPRENOR listings
-  const apprenticeshipCount = 0; // TODO Phase 1: count of LARLING listings
-
+export function BentoGrid({
+  trades,
+  assignmentCount,
+  apprenticeshipCount,
+}: {
+  trades: TradeSummary[];
+  assignmentCount: number;
+  apprenticeshipCount: number;
+}) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       {trades.map((trade) => (
         <BentoCell
           key={trade.slug}
-          href={`/jobb/${trade.slug}`}
+          href={`/jobb?yrke=${trade.slug}`}
           icon={(trade.icon && tradeIcons[trade.icon]) || Zap}
           title={trade.nameSv}
           count={trade.listingCount}
         />
       ))}
       <BentoCell
-        href="/larlingsplatser"
+        href="/jobb?typ=larling"
         icon={GraduationCap}
         title={sv.home.apprenticeshipsLabel}
         count={apprenticeshipCount}
